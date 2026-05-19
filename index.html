@@ -350,14 +350,23 @@ import {
 // firebaseConfig que te aparece en "Configuración del proyecto"
 // y pégalo aquí abajo, reemplazando los valores de ejemplo.
 // ============================================================
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "REEMPLAZAR_API_KEY",
-  authDomain: "REEMPLAZAR.firebaseapp.com",
-  projectId: "REEMPLAZAR_PROJECT_ID",
-  storageBucket: "REEMPLAZAR.appspot.com",
-  messagingSenderId: "REEMPLAZAR_SENDER_ID",
-  appId: "REEMPLAZAR_APP_ID"
+  apiKey: "AIzaSyCXTOo5_snaSQtcW0gJpCVibG0o-vyd8wM",
+  authDomain: "cronograma-logistico-2026.firebaseapp.com",
+  projectId: "cronograma-logistico-2026",
+  storageBucket: "cronograma-logistico-2026.firebasestorage.app",
+  messagingSenderId: "583891494600",
+  appId: "1:583891494600:web:c8580ee531b064debae7fd"
 };
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
 
 // Nombre de la colección en Firestore
 const COLECCION = "cronograma";
