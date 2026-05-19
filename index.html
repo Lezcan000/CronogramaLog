@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>Cronograma Logístico — Firebase</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg: #f3f4f6;
+  --surface: #ffffff;
+  --surface2: #f9fafb;
+  --surface3: #f3f4f6;
+  --border: #e5e7eb;
+  --border2: #d1d5db;
+  --text: #111827;
+  --text2: #4b5563;
+  --text3: #6b7280;
+  --accent: #f97316;
+  --accent2: #fb923c;
+  --accent-glow: rgba(249, 115, 22, 0.1);
+  --green: #059669;
+  --green-bg: rgba(5, 150, 105, 0.1);
+  --green-border: rgba(5, 150, 105, 0.3);
+  --amber: #d97706;
+  --amber-bg: rgba(217, 119, 6, 0.1);
+  --red: #dc2626;
+  --red-bg: rgba(220, 38, 38, 0.1);
+  --blue: #2563eb;
+  --blue-bg: rgba(37, 99, 235, 0.1);
+}
+
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);overflow:hidden;height:100dvh}
+.app{display:flex;flex-direction:column;height:100dvh}
+
+#loadingOverlay{
+  position:fixed;inset:0;background:var(--bg);z-index:9999;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+}
+.spinner{
+  width:40px;height:40px;border:4px solid var(--border);border-top-color:var(--accent);
+  border-radius:50%;animation:spin 1s linear infinite;margin-bottom:16px;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.header{
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  padding:14px 24px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:relative;z-index:100;
+  box-shadow:0 1px 3px rgba(0,0,0,0.05);
+}
+.header::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:0.5}
+.header-left{display:flex;align-items:center;gap:16px}
+.logo-mark{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#f59e0b);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;color:#fff;letter-spacing:-1px;box-shadow:0 4px 10px rgba(249,115,22,0.25)}
+.header h1{font-size:17px;font-weight:700;letter-spacing:-0.3px;color:var(--text)}
+.header h1 span{font-size:11px;font-weight:500;color:var(--text3);margin-left:8px}
+.controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.btn{
+  padding:7px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface);
+  color:var(--text2);font-size:12.5px;font-weight:600;cursor:pointer;transition:all .2s;
+  font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:6px;
+  box-shadow:0 1px 2px rgba(0,0,0,0.05);
+}
+.btn:hover{background:var(--surface3);border-color:var(--border2);color:var(--text);transform:translateY(-1px)}
+.btn-accent{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-accent:hover{background:#ea580c;border-color:#ea580c;color:#fff}
+.btn-delete{background-color:#fee2e2;color:#ef4444;border:none;padding:4px 8px;border-radius:6px;cursor:pointer;font-size:12px;transition:all 0.2s;font-weight:bold}
+.btn-delete:hover{background-color:#ef4444;color:white}
+
+.role-pill{
+  display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);
+  border-radius:8px;padding:4px 4px 4px 12px;font-size:12px;color:var(--text2);
+}
+.role-pill select{
+  background:var(--surface);border:1px solid var(--border);border-radius:6px;
+  color:var(--text);font-size:12px;padding:5px 8px;font-family:'DM Sans',sans-serif;outline:none;cursor:pointer;
+}
+
+.status-bar{
+  background:var(--surface2);border-bottom:1px solid var(--border);padding:8px 24px;
+  display:flex;align-items:center;gap:16px;font-size:12px;flex-wrap:wrap;
+}
+.stat{display:flex;align-items:center;gap:6px;color:var(--text2)}
+.stat-dot{width:7px;height:7px;border-radius:50%}
+.stat-dot.green{background:var(--green)}
+.stat-dot.amber{background:var(--amber)}
+.stat-dot.red{background:var(--red)}
+.stat-val{font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--text)}
+
+.filters{
+  background:var(--surface);border-bottom:1px solid var(--border);padding:10px 24px;
+  display:flex;gap:12px;align-items:center;flex-wrap:wrap;
+}
+.filter-group{display:flex;align-items:center;gap:6px}
+.filter-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;font-weight:600}
+.filter-select{
+  background:var(--surface);border:1px solid var(--border);border-radius:6px;
+  color:var(--text);font-size:12px;padding:6px 10px;font-family:'DM Sans',sans-serif;
+  outline:none;max-width:260px;cursor:pointer;
+}
+.filter-search{
+  background:var(--surface);border:1px solid var(--border);border-radius:6px;
+  color:var(--text);font-size:12px;padding:6px 12px;font-family:'DM Sans',sans-serif;
+  outline:none;min-width:240px;
+}
+.filter-search:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+
+.table-area{flex:1;overflow:auto;position:relative;background:var(--surface)}
+.table-area::-webkit-scrollbar{width:8px;height:8px}
+.table-area::-webkit-scrollbar-track{background:var(--surface2)}
+.table-area::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+
+table{border-collapse:separate;border-spacing:0;width:100%;font-size:12.5px}
+thead{position:sticky;top:0;z-index:50}
+th{
+  background:var(--surface2);color:var(--text2);font-size:11px;font-weight:700;
+  text-transform:uppercase;letter-spacing:0.6px;padding:10px 12px;
+  border-bottom:2px solid var(--accent);border-right:1px solid var(--border);
+  white-space:nowrap;cursor:pointer;user-select:none;
+}
+th:hover{background:var(--surface3);color:var(--text)}
+
+td{
+  padding:9px 12px;border-bottom:1px solid var(--border);border-right:1px solid var(--border);
+  vertical-align:top;color:var(--text2);transition:background .15s;
+  height:1px;
+}
+tr:hover td{background:var(--surface2)}
+tr.editable td{color:var(--text)}
+tr.locked td{opacity:0.9;color:var(--text);background-color:#f9fafb}
+
+.cell-edit{width:100%;border:none;background:transparent;color:inherit;font:inherit;outline:none;padding:0}
+.cell-edit:focus{background:var(--surface);box-shadow:0 0 0 2px var(--accent-glow);border-radius:4px;padding:2px 4px}
+select.cell-edit,textarea.cell-edit{cursor:pointer;background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:3px 6px;color:var(--text);max-width:100%;font-family:inherit;font-size:inherit}
+textarea.cell-edit{resize:vertical;min-height:60px;width:100%;cursor:text}
+input.cell-edit[type=date]{cursor:pointer;background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:3px 6px;color:var(--text)}
+
+.cell-display{
+  cursor:pointer;
+  padding:9px 12px;
+  margin:-9px -12px;
+  border-radius:0;
+  border:1px solid transparent;
+  min-height:100%;
+  height:calc(100% + 18px);
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  transition:all .15s;
+  white-space:pre-wrap;
+  word-break:break-word;
+}
+.cell-display:hover{border-color:var(--border2);background:var(--surface3)}
+
+.tipo-pp{background:var(--blue-bg) !important;color:var(--blue) !important;font-weight:700}
+.tipo-ord{background:var(--amber-bg) !important;color:var(--amber) !important;font-weight:700}
+
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(17,24,39,0.5);backdrop-filter:blur(4px);z-index:200;justify-content:center;align-items:center}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;box-shadow:0 24px 48px rgba(0,0,0,0.15);max-width:400px;width:90%}
+.modal h3{color:var(--text);font-size:18px;margin-bottom:8px;font-weight:700}
+.modal p{color:var(--text2);font-size:13px;margin-bottom:16px}
+.modal input[type=password]{
+  width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:8px;
+  background:var(--surface);color:var(--text);font-size:14px;outline:none;font-family:'DM Sans',sans-serif;
+}
+.modal input[type=password]:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+.error-msg{color:var(--red);font-size:12px;display:none;margin-top:6px}
+.error-flash{animation:errorPulse 1s}
+@keyframes errorPulse{0%{background-color:var(--red-bg)}100%{background-color:transparent}}
+
+#toast{
+  display:none;position:fixed;bottom:20px;right:20px;
+  background:var(--surface);border:1px solid var(--green-border);color:var(--green);
+  padding:10px 18px;border-radius:10px;font-size:13px;font-weight:600;z-index:300;
+  box-shadow:0 8px 24px rgba(0,0,0,0.1);
+}
+
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+tr{animation:fadeIn .3s ease both}
+
+.th-wrap{display:flex;align-items:center;gap:4px;justify-content:space-between}
+.th-label{cursor:pointer;flex:1}
+.filter-btn{
+  opacity:0;background:none;border:none;cursor:pointer;font-size:10px;color:var(--text3);
+  padding:2px 5px;border-radius:4px;transition:all .2s;flex-shrink:0;
+}
+.filter-btn:hover{background:var(--surface3);color:var(--accent)}
+th:hover .filter-btn{opacity:1}
+.filter-btn.active{opacity:1;color:var(--accent);background:var(--accent-glow)}
+
+#colFilterPopup{
+  display:none;position:fixed;z-index:500;
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:14px;box-shadow:0 16px 40px rgba(0,0,0,0.15);width:280px;
+  font-family:'DM Sans',sans-serif;
+}
+#colFilterPopup .popup-title{
+  font-weight:700;font-size:12px;color:var(--accent);margin-bottom:10px;
+  padding-bottom:8px;border-bottom:1px solid var(--border);
+  display:flex;justify-content:space-between;align-items:center;
+}
+#colFilterPopup .popup-close{background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px}
+#colFilterPopup .popup-close:hover{color:var(--text)}
+#colFilterSearch{
+  width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:6px;
+  background:var(--surface);color:var(--text);font-size:12px;outline:none;
+  margin-bottom:8px;font-family:'DM Sans',sans-serif;
+}
+#colFilterSearch:focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-glow)}
+#colFilterList{max-height:220px;overflow-y:auto;margin-bottom:10px}
+#colFilterList::-webkit-scrollbar{width:5px}
+#colFilterList::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+#colFilterList label{
+  display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:5px;
+  cursor:pointer;font-size:12px;color:var(--text2);transition:background .15s;
+}
+#colFilterList label:hover{background:var(--surface3);color:var(--text)}
+#colFilterList input[type=checkbox]{accent-color:var(--accent);width:14px;height:14px;cursor:pointer}
+.popup-actions{display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:8px}
+.popup-actions .left{display:flex;gap:5px}
+.popup-mini-btn{
+  padding:4px 10px;border-radius:5px;border:1px solid var(--border);background:var(--surface);
+  color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;
+}
+.popup-mini-btn:hover{background:var(--surface3);color:var(--text)}
+.popup-mini-btn.apply{background:var(--accent);border-color:var(--accent);color:#fff}
+.popup-mini-btn.apply:hover{background:#ea580c}
+
+.empty-state{text-align:center;padding:40px;color:var(--text3);font-size:14px}
+
+.config-warning{
+  background:#fef3c7;border:1px solid #fbbf24;color:#92400e;
+  padding:14px 24px;text-align:center;font-size:13px;font-weight:600;
+}
+.config-warning a{color:var(--accent);text-decoration:underline}
+</style>
+</head>
+<body>
+
+<div id="loadingOverlay">
+  <div class="spinner"></div>
+  <h2 id="loadingTitle" style="color:var(--text);font-size:18px;">Conectando con Firebase...</h2>
+  <p id="loadingDesc" style="color:var(--text3);font-size:13px;margin-top:8px;">Cargando información del cronograma</p>
+</div>
+
+<div id="configWarning" class="config-warning" style="display:none">
+  ⚠️ La configuración de Firebase no está definida. Edita el archivo y reemplaza los valores en <code>firebaseConfig</code>. Consulta el instructivo para obtener tus credenciales.
+</div>
+
+<div class="app">
+<div class="header">
+<div class="header-left">
+<div class="logo-mark">CL</div>
+<div>
+<h1>Cronograma Logístico <span>Firebase Firestore</span></h1>
+</div>
+</div>
+<div class="controls">
+<button class="btn" onclick="exportXLSX()">💾 Exportar</button>
+<button class="btn btn-accent" onclick="addRow()">＋ Agregar Fila</button>
+<div class="role-pill">
+<span>👤</span>
+<select id="roleSelect">
+<option value="Invitado">Solo Lectura</option>
+<option value="Equipo de Contratación">Equipo de Contratación</option>
+<option value="Subsecretaría de Formación y Participación Ciudadana">Subsec. Formación</option>
+<option value="Subsecretaría de Organización Social">Subsec. Organización</option>
+<option value="Subsecretaría de Planeación Local y PP">Subsec. Planeación</option>
+<option value="Unidad Administrativa">Unidad Administrativa</option>
+</select>
+</div>
+</div>
+</div>
+
+<div class="filters">
+  <div id="dynamicFilters" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;"></div>
+  <div style="flex:1"></div>
+  <input type="text" id="searchBox" class="filter-search" placeholder="🔍 Buscar globalmente..." autocomplete="off" oninput="debounceSearch()">
+  <button class="btn" onclick="clearAllColFilters()" style="font-size:12px">🧹 Quitar Filtros</button>
+</div>
+
+<div class="status-bar" id="statusBar"></div>
+
+<div class="table-area" id="tableArea">
+  <table>
+    <thead id="thead"></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+</div>
+
+<div class="modal-overlay" id="passModal">
+<div class="modal">
+<h3>🔐 Autenticación</h3>
+<p id="passRoleName"></p>
+<input type="password" id="passInput" placeholder="Contraseña" autocomplete="new-password" onkeydown="if(event.key==='Enter')verifyPass()">
+<div class="error-msg" id="passError">Contraseña incorrecta</div>
+<div class="modal-actions">
+<button class="btn" onclick="cancelPass()">Cancelar</button>
+<button class="btn btn-accent" onclick="verifyPass()">Acceder</button>
+</div>
+</div>
+</div>
+
+<div class="modal-overlay" id="alertModal" style="z-index:300;">
+  <div class="modal">
+    <h3 style="color:var(--amber);">⚠️ Aviso</h3>
+    <p id="alertMessage" style="margin-top:10px;font-size:14px;"></p>
+    <div class="modal-actions">
+      <button class="btn btn-accent" onclick="document.getElementById('alertModal').style.display='none'">Entendido</button>
+    </div>
+  </div>
+</div>
+
+<div id="colFilterPopup">
+<div class="popup-title"><span id="popupColName">Columna</span><button class="popup-close" onclick="closeColFilter()">✕</button></div>
+<input type="text" id="colFilterSearch" placeholder="🔍 Buscar..." autocomplete="off" oninput="searchColFilter()">
+<div id="colFilterList"></div>
+<div class="popup-actions">
+<div class="left">
+<button class="popup-mini-btn" onclick="toggleAllCF(true)">Todos</button>
+<button class="popup-mini-btn" onclick="toggleAllCF(false)">Ninguno</button>
+</div>
+<button class="popup-mini-btn apply" onclick="applyColFilter()">Aplicar</button>
+</div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+
+<!-- ============================================================
+     FIREBASE SDK MODULAR (v10) — Importado vía ES Modules
+     ============================================================ -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getFirestore, collection, getDocs, doc, setDoc, deleteDoc, updateDoc, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+// ============================================================
+// 🔧 CONFIGURACIÓN DE FIREBASE — REEMPLAZA ESTOS VALORES
+// ============================================================
+// Después de crear tu proyecto en Firebase, copia el objeto
+// firebaseConfig que te aparece en "Configuración del proyecto"
+// y pégalo aquí abajo, reemplazando los valores de ejemplo.
+// ============================================================
+const firebaseConfig = {
+  apiKey: "REEMPLAZAR_API_KEY",
+  authDomain: "REEMPLAZAR.firebaseapp.com",
+  projectId: "REEMPLAZAR_PROJECT_ID",
+  storageBucket: "REEMPLAZAR.appspot.com",
+  messagingSenderId: "REEMPLAZAR_SENDER_ID",
+  appId: "REEMPLAZAR_APP_ID"
+};
+
+// Nombre de la colección en Firestore
+const COLECCION = "cronograma";
+
+// Detectar si todavía no se configuró
+const configurado = !Object.values(firebaseConfig).some(v => String(v).includes("REEMPLAZAR"));
+
+let db = null;
+if (configurado) {
+  const app = initializeApp(firebaseConfig);
+  db = getFirestore(app);
+} else {
+  document.getElementById('configWarning').style.display = 'block';
+}
+
+// Exponer funciones de Firebase al scope global para el código no-modular
+window._fb = { db, collection, getDocs, doc, setDoc, deleteDoc, updateDoc, serverTimestamp, COLECCION, configurado };
+
+// Disparar evento para que el script principal arranque
+window.dispatchEvent(new Event('firebase_listo'));
+</script>
+
+<!-- ============================================================
+     LÓGICA PRINCIPAL DE LA APLICACIÓN
+     ============================================================ -->
+<script>
+// ============================================================
+// CONTRASEÑAS DE ROLES
+// (mismas que el sistema original; cámbialas si lo necesitas)
+// ============================================================
+const PASSWORDS = {
+  "Equipo de Contratación": "EquipoContrat",
+  "Subsecretaría de Formación y Participación Ciudadana": "Formacion",
+  "Subsecretaría de Organización Social": "OrgSocial",
+  "Subsecretaría de Planeación Local y PP": "LocalPP26",
+  "Unidad Administrativa": "UnidadAdmin"
+};
+
+// ============================================================
+// DEFINICIÓN DE COLUMNAS Y LISTAS
+// ============================================================
+const HEADERS = [
+  "Subsecretaria",
+  "Proyecto",
+  "Comuna",
+  "Tipo de recurso (PP/ORD)",
+  "Actividad ( Nombre del evento)",
+  "Descripción de Actividad",
+  "Fecha Inicio",
+  "Fecha Fin",
+  "Responsable",
+  "Grupo u organización a fortalecer",
+  "Observaciones"
+];
+
+const SUBSECRETARIAS = [
+  "Subsecretaría de Formación y Participación Ciudadana",
+  "Subsecretaría de Organización Social",
+  "Subsecretaría de Planeación Local y PP",
+  "Unidad Administrativa"
+];
+
+const COMUNAS = [
+  "Comuna 1 - Popular",
+  "Comuna 2 - Santa Cruz",
+  "Comuna 3 - Manrique",
+  "Comuna 4 - Aranjuez",
+  "Comuna 5 - Castilla",
+  "Comuna 6 - Doce de Octubre",
+  "Comuna 7 - Robledo",
+  "Comuna 8 - Villa Hermosa",
+  "Comuna 9 - Buenos Aires",
+  "Comuna 10 - La Candelaria",
+  "Comuna 11 - Laureles-Estadio",
+  "Comuna 12 - La América",
+  "Comuna 13 - San Javier",
+  "Comuna 14 - El Poblado",
+  "Comuna 15 - Guayabal",
+  "Comuna 16 - Belén",
+  "Corregimiento 50 - Palmitas",
+  "Corregimiento 60 - San Cristóbal",
+  "Corregimiento 70 - Altavista",
+  "Corregimiento 80 - San Antonio de Prado",
+  "Corregimiento 90 - Santa Elena",
+  "Multi-comuna",
+  "N/A"
+];
+
+const TIPOS_RECURSO = ["PP", "ORD"];
+
+// Listas por columna
+const LISTAS = {
+  "Subsecretaria": SUBSECRETARIAS,
+  "Comuna": COMUNAS,
+  "Tipo de recurso (PP/ORD)": TIPOS_RECURSO
+};
+
+// Columnas que son fechas
+const COLS_FECHA = ["Fecha Inicio", "Fecha Fin"];
+
+// Columnas que son textarea (multilínea)
+const COLS_LARGAS = ["Descripción de Actividad", "Observaciones"];
+
+// ============================================================
+// VARIABLES GLOBALES
+// ============================================================
+let data = [];
+let currentRole = "Invitado";
+let pendingRole = "";
+let historyStack = [];
+let colFilters = {};
+let cfContext = { col: '', label: '' };
+let searchTimeout = null;
+
+let deltas = { updates: [], adds: [], deletes: [] };
+let isSaving = false;
+let saveTimeoutId = null;
+let hasUnsavedChanges = false;
+
+// ============================================================
+// UTILIDADES
+// ============================================================
+function escapeHtml(s) {
+  return String(s || '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function escapeAttr(s) {
+  return String(s || '')
+    .replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+    .replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+function generateUUID() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  return 'row_' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 9);
+}
+
+function showAlert(msg) {
+  document.getElementById('alertMessage').textContent = msg;
+  document.getElementById('alertModal').style.display = 'flex';
+}
+
+let toastTimer;
+function toast(msg) {
+  let t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.style.display = 'none', 2500);
+}
+
+// ============================================================
+// CACHÉ LOCAL DE DELTAS
+// ============================================================
+function saveLocalDeltas() {
+  localStorage.setItem('cronograma_log_deltas', JSON.stringify(deltas));
+}
+function loadLocalDeltas() {
+  let cached = localStorage.getItem('cronograma_log_deltas');
+  if (cached) {
+    try {
+      let parsed = JSON.parse(cached);
+      if (parsed.adds.length > 0 || parsed.updates.length > 0 || parsed.deletes.length > 0) {
+        deltas = parsed;
+        hasUnsavedChanges = true;
+        triggerAutoSave();
+      }
+    } catch (e) { console.error("Error leyendo caché local:", e); }
+  }
+}
+function applyDeltasToData() {
+  if (!hasUnsavedChanges) return;
+  data = data.filter(r => !deltas.deletes.includes(r.ID));
+  deltas.updates.forEach(u => {
+    let r = data.find(x => x.ID === u.id);
+    if (r) r[u.field] = u.value;
+  });
+  deltas.adds.forEach(a => {
+    if (!data.find(x => x.ID === a.ID)) data.push(a);
+  });
+}
+
+window.addEventListener('beforeunload', function (e) {
+  if (hasUnsavedChanges || saveTimeoutId || isSaving) {
+    e.preventDefault();
+    e.returnValue = 'Tienes cambios pendientes. ¿Salir de todas formas?';
+  }
+});
+
+// ============================================================
+// CARGA INICIAL DESDE FIREBASE
+// ============================================================
+window.addEventListener('firebase_listo', async function () {
+  if (!window._fb.configurado) {
+    document.getElementById('loadingOverlay').style.display = 'none';
+    initTopFilters();
+    render();
+    return;
+  }
+
+  try {
+    const { db, collection, getDocs, COLECCION } = window._fb;
+    const snapshot = await getDocs(collection(db, COLECCION));
+    data = [];
+    snapshot.forEach(docSnap => {
+      const d = docSnap.data();
+      d.ID = docSnap.id;
+      // Garantizar que todas las columnas existan
+      HEADERS.forEach(h => { if (d[h] === undefined) d[h] = ''; });
+      data.push(d);
+    });
+
+    loadLocalDeltas();
+    applyDeltasToData();
+    initTopFilters();
+    render();
+    document.getElementById('loadingOverlay').style.display = 'none';
+    toast('✅ Conectado a Firestore');
+  } catch (error) {
+    console.warn("Error conectando a Firestore:", error);
+    document.getElementById('loadingOverlay').style.display = 'none';
+    toast('⚠️ Error de conexión: ' + error.message);
+    loadLocalDeltas();
+    applyDeltasToData();
+    initTopFilters();
+    render();
+  }
+});
+
+// ============================================================
+// FILTROS SUPERIORES
+// ============================================================
+function initTopFilters() {
+  let container = document.getElementById('dynamicFilters');
+  container.innerHTML = '';
+
+  const filtros = ["Subsecretaria", "Tipo de recurso (PP/ORD)"];
+  filtros.forEach(col => {
+    let valores = LISTAS[col] || [...new Set(data.map(r => r[col]).filter(Boolean))].sort();
+    let html = `
+      <div class="filter-group">
+        <span class="filter-label">${escapeHtml(col)}</span>
+        <select class="filter-select top-filter" data-col="${escapeAttr(col)}" onchange="render()">
+          <option value="">Todos</option>
+          ${valores.map(p => `<option value="${escapeAttr(p)}">${escapeHtml(String(p).substring(0, 60))}</option>`).join('')}
+        </select>
+      </div>`;
+    container.innerHTML += html;
+  });
+}
+
+// ============================================================
+// PERMISOS
+// ============================================================
+function checkPerm(sub) {
+  if (currentRole === 'Equipo de Contratación') return true;
+  if (currentRole === 'Invitado') return false;
+  if (!sub || String(sub).trim() === '') return false;
+  return String(sub).trim().toUpperCase() === String(currentRole).trim().toUpperCase();
+}
+
+function getColStyle(col) {
+  let c = col.toUpperCase().trim();
+  if (c.includes('SUBSEC')) return 'min-width:180px;';
+  if (c.includes('PROYECTO')) return 'min-width:200px;';
+  if (c.includes('COMUNA')) return 'min-width:160px;';
+  if (c.includes('TIPO')) return 'min-width:90px;';
+  if (c.includes('ACTIVIDAD') && !c.includes('DESCRIP')) return 'min-width:200px;';
+  if (c.includes('DESCRIP')) return 'min-width:280px;';
+  if (c.includes('FECHA')) return 'min-width:120px;';
+  if (c.includes('RESPONSABLE')) return 'min-width:150px;';
+  if (c.includes('GRUPO')) return 'min-width:200px;';
+  if (c.includes('OBSERVACIONES')) return 'min-width:240px;';
+  return 'min-width:140px;';
+}
+
+// ============================================================
+// FILTRADO Y BÚSQUEDA
+// ============================================================
+function debounceSearch() {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => render(), 300);
+}
+
+function getFiltered() {
+  let topFilters = document.querySelectorAll('.top-filter');
+  let s = document.getElementById('searchBox').value.toLowerCase();
+
+  return data.filter(r => {
+    for (let sel of topFilters) {
+      let col = sel.dataset.col;
+      let val = sel.value;
+      if (val && String(r[col]) !== val) return false;
+    }
+    if (s) {
+      let match = false;
+      for (let key of HEADERS) {
+        if (String(r[key] || '').toLowerCase().includes(s)) { match = true; break; }
+      }
+      if (!match) return false;
+    }
+    for (let key in colFilters) {
+      if (colFilters[key] && colFilters[key].length > 0) {
+        let val = String(r[key] || '').trim();
+        if (!colFilters[key].includes(val)) return false;
+      }
+    }
+    return true;
+  });
+}
+
+// ============================================================
+// RENDERIZADO
+// ============================================================
+function render() {
+  let thead = document.getElementById('thead');
+  let tbody = document.getElementById('tbody');
+
+  let filtered = getFiltered();
+
+  let h = '<tr>';
+  HEADERS.forEach(col => {
+    let style = getColStyle(col);
+    let fBtn = `<button class="filter-btn ${colFilters[col] ? 'active' : ''}" onclick="event.stopPropagation();openColFilter(event,'${escapeAttr(col)}','${escapeAttr(col)}')">▼</button>`;
+    h += `<th style="${style}"><div class="th-wrap"><span class="th-label">${escapeHtml(col)}</span>${fBtn}</div></th>`;
+  });
+  h += '<th style="width:50px;text-align:left;background:var(--surface2);">⚙️</th></tr>';
+  thead.innerHTML = h;
+
+  if (data.length === 0 && filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="${HEADERS.length + 1}" class="empty-state">No hay registros aún. Cambia tu rol y haz clic en "Agregar Fila" para comenzar.</td></tr>`;
+    document.getElementById('statusBar').innerHTML = `<div class="stat" style="margin-left:auto"><span style="color:var(--text3);font-size:11px">Rol: <strong style="color:var(--accent2)">${escapeHtml(currentRole)}</strong></span></div>`;
+    return;
+  }
+
+  let html = '';
+  filtered.forEach((r, idx) => {
+    let can = checkPerm(r['Subsecretaria']);
+    let cls = can ? 'editable' : 'locked';
+    html += `<tr class="${cls}" style="animation-delay:${idx * 0.015}s">`;
+
+    HEADERS.forEach(col => {
+      let v = r[col] || '';
+
+      if (col === "Tipo de recurso (PP/ORD)") {
+        let valLower = String(v).trim().toUpperCase();
+        let tipoCls = '';
+        if (valLower === 'PP') tipoCls = ' tipo-pp';
+        else if (valLower === 'ORD') tipoCls = ' tipo-ord';
+        html += `<td class="${tipoCls}" style="text-align:center;vertical-align:middle;">${mkEditable(r, col, can)}</td>`;
+      } else if (COLS_FECHA.includes(col)) {
+        html += `<td>${mkEditable(r, col, can)}</td>`;
+      } else {
+        html += `<td>${mkEditable(r, col, can)}</td>`;
+      }
+    });
+
+    let delBtn = (can && currentRole !== 'Invitado') ? `<button class="btn-delete" onclick="eliminarFila('${escapeAttr(r.ID)}')">❌</button>` : '';
+    html += `<td style="text-align:left;vertical-align:middle;background:var(--surface);">${delBtn}</td>`;
+    html += '</tr>';
+  });
+
+  tbody.innerHTML = html;
+
+  // Status bar
+  let total = data.length;
+  let shown = filtered.length;
+  let actFilters = Object.keys(colFilters).length;
+  let filterInfo = actFilters > 0 ? `<div class="stat"><span class="stat-dot red"></span>Filtros activos: <span class="stat-val">${actFilters}</span></div>` : '';
+
+  document.getElementById('statusBar').innerHTML =
+    `<div class="stat"><span class="stat-dot green"></span>Mostrando <span class="stat-val">${shown}</span> de ${total}</div>` +
+    filterInfo +
+    `<div class="stat" style="margin-left:auto"><span style="color:var(--text3);font-size:11px">Rol: <strong style="color:var(--accent2)">${escapeHtml(currentRole)}</strong></span></div>`;
+}
+
+function mkEditable(r, col, can) {
+  let v = r[col] || '';
+  if (!can || currentRole === 'Invitado') return escapeHtml(v);
+  return `<div class="cell-display" onclick="startEdit(this,'${escapeAttr(r.ID)}','${escapeAttr(col)}')">${escapeHtml(v) || '&nbsp;'}</div>`;
+}
+
+// ============================================================
+// EDICIÓN DE CELDAS
+// ============================================================
+function startEdit(el, id, col) {
+  let r = data.find(x => x.ID === id);
+  if (!r) return;
+  let v = r[col] || '';
+  let inp;
+
+  if (LISTAS[col]) {
+    inp = document.createElement('select');
+    inp.className = 'cell-edit';
+    inp.innerHTML = '<option value=""></option>' +
+      LISTAS[col].map(opt => `<option value="${escapeAttr(opt)}" ${opt === v ? 'selected' : ''}>${escapeHtml(opt)}</option>`).join('');
+  } else if (COLS_FECHA.includes(col)) {
+    inp = document.createElement('input');
+    inp.type = 'date';
+    inp.className = 'cell-edit';
+    inp.value = v;
+  } else if (COLS_LARGAS.includes(col)) {
+    inp = document.createElement('textarea');
+    inp.className = 'cell-edit';
+    inp.value = v;
+    inp.rows = 3;
+  } else {
+    inp = document.createElement('input');
+    inp.type = 'text';
+    inp.className = 'cell-edit';
+    inp.value = v;
+    inp.setAttribute('autocomplete', 'off');
+  }
+
+  inp.dataset.id = id;
+  inp.dataset.col = col;
+  el.replaceWith(inp);
+  inp.focus();
+  if (inp.select) inp.select();
+
+  const finishEdit = function () {
+    if (inp.dataset.handled) return;
+    inp.dataset.handled = true;
+    onCellChange(inp);
+  };
+
+  inp.addEventListener('blur', finishEdit);
+  if (inp.tagName === 'SELECT') inp.addEventListener('change', () => inp.blur());
+  inp.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && this.tagName !== 'TEXTAREA') {
+      e.preventDefault();
+      this.blur();
+    }
+    if (e.key === 'Escape') {
+      this.dataset.handled = true;
+      let div = document.createElement('div');
+      div.className = 'cell-display';
+      div.onclick = function () { startEdit(this, id, col); };
+      div.innerHTML = escapeHtml(r[col]) || '&nbsp;';
+      this.replaceWith(div);
+    }
+  });
+}
+
+function onCellChange(el) {
+  let id = el.dataset.id, col = el.dataset.col;
+  let r = data.find(x => x.ID === id);
+  if (!r) return;
+  let oldVal = r[col];
+  let v = el.value;
+
+  // Validación de fechas
+  if (COLS_FECHA.includes(col) && v) {
+    if (col === "Fecha Fin" && r["Fecha Inicio"] && v < r["Fecha Inicio"]) {
+      showAlert("La Fecha Fin no puede ser anterior a la Fecha Inicio.");
+      v = oldVal;
+    }
+    if (col === "Fecha Inicio" && r["Fecha Fin"] && v > r["Fecha Fin"]) {
+      showAlert("La Fecha Inicio no puede ser posterior a la Fecha Fin.");
+      v = oldVal;
+    }
+  }
+
+  if (oldVal !== v) {
+    historyStack.push({ id, col, oldVal });
+    if (historyStack.length > 50) historyStack.shift();
+    r[col] = v;
+
+    let newDiv = document.createElement('div');
+    newDiv.className = 'cell-display';
+    newDiv.onclick = function () { startEdit(this, id, col); };
+    newDiv.innerHTML = escapeHtml(v) || '&nbsp;';
+    el.replaceWith(newDiv);
+
+    // Actualizar clases para Tipo de recurso
+    if (col === "Tipo de recurso (PP/ORD)") {
+      let td = newDiv.closest('td');
+      if (td) {
+        td.classList.remove('tipo-pp', 'tipo-ord');
+        let valLower = String(v).trim().toUpperCase();
+        if (valLower === 'PP') td.classList.add('tipo-pp');
+        else if (valLower === 'ORD') td.classList.add('tipo-ord');
+      }
+    }
+
+    // Registrar en deltas
+    let addObj = deltas.adds.find(a => a.ID === id);
+    if (addObj) {
+      addObj[col] = v;
+    } else {
+      let u = deltas.updates.find(x => x.id === id && x.field === col);
+      if (u) u.value = v; else deltas.updates.push({ id, field: col, value: v });
+    }
+
+    saveLocalDeltas();
+    triggerAutoSave();
+  } else {
+    let newDiv = document.createElement('div');
+    newDiv.className = 'cell-display';
+    newDiv.onclick = function () { startEdit(this, id, col); };
+    newDiv.innerHTML = escapeHtml(oldVal) || '&nbsp;';
+    el.replaceWith(newDiv);
+  }
+}
+
+// ============================================================
+// AGREGAR / ELIMINAR FILAS
+// ============================================================
+function addRow() {
+  if (currentRole === 'Invitado') { toast('⚠️ Modo solo lectura'); return; }
+
+  let id = generateUUID();
+  let nr = { ID: id };
+  HEADERS.forEach(h => nr[h] = '');
+  if (currentRole !== 'Equipo de Contratación') nr['Subsecretaria'] = currentRole;
+
+  data.push(nr);
+  deltas.adds.push(nr);
+  saveLocalDeltas();
+  render();
+  triggerAutoSave();
+
+  setTimeout(() => {
+    let tableArea = document.querySelector('.table-area');
+    if (tableArea) tableArea.scrollTo({ top: tableArea.scrollHeight, behavior: 'smooth' });
+    let nuevaFilaTr = document.querySelector(`button[onclick*="${id}"]`)?.closest('tr');
+    if (nuevaFilaTr) {
+      nuevaFilaTr.style.transition = 'background-color 0.5s';
+      nuevaFilaTr.style.backgroundColor = '#fef08a';
+      setTimeout(() => nuevaFilaTr.style.backgroundColor = '', 2000);
+    }
+  }, 100);
+}
+
+function eliminarFila(id) {
+  let r = data.find(x => x.ID === id);
+  if (!r) return;
+  if (!checkPerm(r['Subsecretaria'])) { toast('⚠️ Sin permisos'); return; }
+
+  if (confirm("¿Eliminar esta fila por completo?")) {
+    let rIdx = data.indexOf(r);
+    let deletedRow = data.splice(rIdx, 1)[0];
+    historyStack.push({ type: 'delete', row: deletedRow, index: rIdx });
+    if (historyStack.length > 50) historyStack.shift();
+
+    deltas.deletes.push(id);
+    deltas.adds = deltas.adds.filter(a => a.ID !== id);
+    deltas.updates = deltas.updates.filter(u => u.id !== id);
+
+    saveLocalDeltas();
+    render();
+    triggerAutoSave();
+  }
+}
+
+// ============================================================
+// AUTO-GUARDADO EN FIREBASE
+// ============================================================
+function triggerAutoSave() {
+  if (currentRole === 'Invitado') return;
+  if (!window._fb || !window._fb.configurado) {
+    toast('⚠️ Firebase no configurado — cambios solo locales');
+    return;
+  }
+  hasUnsavedChanges = true;
+  toast('⏳ Guardando...');
+  if (saveTimeoutId) clearTimeout(saveTimeoutId);
+  saveTimeoutId = setTimeout(() => ejecutarGuardadoSilencioso(), 2000);
+}
+
+async function ejecutarGuardadoSilencioso(intentos = 3) {
+  if (isSaving) return;
+  if (deltas.updates.length === 0 && deltas.adds.length === 0 && deltas.deletes.length === 0) return;
+  if (!window._fb.configurado) return;
+
+  isSaving = true;
+
+  const snapshot = {
+    adds: [...deltas.adds],
+    updates: [...deltas.updates],
+    deletes: [...deltas.deletes]
+  };
+
+  // Limpiamos los deltas locales optimistamente
+  deltas = { updates: [], adds: [], deletes: [] };
+  saveLocalDeltas();
+
+  try {
+    const { db, collection, doc, setDoc, deleteDoc, updateDoc, serverTimestamp, COLECCION } = window._fb;
+
+    // 1. Procesar ADDS
+    for (const obj of snapshot.adds) {
+      const id = obj.ID;
+      const docData = { ...obj };
+      delete docData.ID; // No guardar el ID dentro del documento
+      docData._actualizado = serverTimestamp();
+      docData._creado = serverTimestamp();
+      await setDoc(doc(db, COLECCION, id), docData);
+    }
+
+    // 2. Procesar UPDATES (agrupados por ID)
+    const updatesByDoc = {};
+    snapshot.updates.forEach(u => {
+      if (!updatesByDoc[u.id]) updatesByDoc[u.id] = {};
+      updatesByDoc[u.id][u.field] = u.value;
+    });
+
+    for (const [id, fields] of Object.entries(updatesByDoc)) {
+      // Si la fila también está en adds, ya quedó guardada con setDoc completo. Saltar.
+      if (snapshot.adds.find(a => a.ID === id)) continue;
+      fields._actualizado = serverTimestamp();
+      try {
+        await updateDoc(doc(db, COLECCION, id), fields);
+      } catch (errUpd) {
+        // Si el documento no existe, crearlo
+        if (String(errUpd.message).includes('No document to update')) {
+          let r = data.find(x => x.ID === id);
+          if (r) {
+            const docData = { ...r };
+            delete docData.ID;
+            docData._actualizado = serverTimestamp();
+            docData._creado = serverTimestamp();
+            await setDoc(doc(db, COLECCION, id), docData);
+          }
+        } else { throw errUpd; }
+      }
+    }
+
+    // 3. Procesar DELETES
+    for (const id of snapshot.deletes) {
+      await deleteDoc(doc(db, COLECCION, id));
+    }
+
+    hasUnsavedChanges = false;
+    saveTimeoutId = null;
+    toast('✅ Guardado en Firestore');
+
+    if (deltas.adds.length === 0 && deltas.updates.length === 0 && deltas.deletes.length === 0) {
+      localStorage.removeItem('cronograma_log_deltas');
+    } else {
+      saveLocalDeltas();
+    }
+  } catch (error) {
+    console.error("Error al guardar en Firestore:", error);
+    // Revertir: volver a poner los deltas
+    deltas.updates.unshift(...snapshot.updates);
+    deltas.adds.unshift(...snapshot.adds);
+    deltas.deletes.unshift(...snapshot.deletes);
+
+    // Deduplicar updates (mantener el más reciente)
+    let seen = new Map();
+    for (let i = deltas.updates.length - 1; i >= 0; i--) {
+      let key = deltas.updates[i].id + '||' + deltas.updates[i].field;
+      if (seen.has(key)) deltas.updates.splice(i, 1);
+      else seen.set(key, true);
+    }
+
+    saveLocalDeltas();
+    hasUnsavedChanges = true;
+    saveTimeoutId = null;
+    toast('❌ Error al guardar: ' + error.message);
+  } finally {
+    isSaving = false;
+    if (deltas.updates.length > 0 || deltas.adds.length > 0 || deltas.deletes.length > 0) {
+      triggerAutoSave();
+    }
+  }
+}
+
+// ============================================================
+// EXPORTAR A EXCEL
+// ============================================================
+function exportXLSX() {
+  let filtered = getFiltered();
+  let rows = filtered.map(r => {
+    let row = {};
+    HEADERS.forEach(h => row[h] = r[h] || '');
+    return row;
+  });
+
+  let ws = XLSX.utils.json_to_sheet(rows, { header: HEADERS });
+  let range = XLSX.utils.decode_range(ws['!ref']);
+
+  const headerStyle = {
+    font: { bold: true, color: { rgb: "FFFFFF" } },
+    fill: { fgColor: { rgb: "F97316" } },
+    alignment: { horizontal: "center", vertical: "center", wrapText: true },
+    border: {
+      top: { style: "thin", color: { rgb: "D1D5DB" } },
+      bottom: { style: "thin", color: { rgb: "D1D5DB" } },
+      left: { style: "thin", color: { rgb: "D1D5DB" } },
+      right: { style: "thin", color: { rgb: "D1D5DB" } }
+    }
+  };
+  const dataStyle = {
+    alignment: { vertical: "top", wrapText: true },
+    border: {
+      top: { style: "thin", color: { rgb: "E5E7EB" } },
+      bottom: { style: "thin", color: { rgb: "E5E7EB" } },
+      left: { style: "thin", color: { rgb: "E5E7EB" } },
+      right: { style: "thin", color: { rgb: "E5E7EB" } }
+    }
+  };
+
+  for (let R = range.s.r; R <= range.e.r; ++R) {
+    for (let C = range.s.c; C <= range.e.c; ++C) {
+      let cell_ref = XLSX.utils.encode_cell({ c: C, r: R });
+      if (!ws[cell_ref]) continue;
+      ws[cell_ref].s = R === 0 ? headerStyle : dataStyle;
+    }
+  }
+
+  let wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Cronograma');
+  ws['!cols'] = HEADERS.map(h => ({ wch: h.length > 20 ? 35 : 20 }));
+  XLSX.writeFile(wb, 'Cronograma_Logistico.xlsx');
+}
+
+// ============================================================
+// ROL Y AUTENTICACIÓN
+// ============================================================
+document.getElementById('roleSelect').addEventListener('change', function () {
+  if (this.value === 'Invitado') {
+    currentRole = 'Invitado';
+    render();
+    return;
+  }
+  pendingRole = this.value;
+  document.getElementById('passRoleName').textContent = pendingRole;
+  document.getElementById('passInput').value = '';
+  document.getElementById('passError').style.display = 'none';
+  document.getElementById('passModal').style.display = 'flex';
+  setTimeout(() => document.getElementById('passInput').focus(), 100);
+});
+
+function verifyPass() {
+  let inputPass = document.getElementById('passInput').value;
+  if (PASSWORDS[pendingRole] === inputPass) {
+    currentRole = pendingRole;
+    document.getElementById('passModal').style.display = 'none';
+    render();
+    toast('✅ Autenticado como ' + currentRole);
+  } else {
+    document.getElementById('passError').style.display = 'block';
+  }
+}
+
+function cancelPass() {
+  document.getElementById('passModal').style.display = 'none';
+  document.getElementById('roleSelect').value = currentRole === 'Invitado' ? 'Invitado' : currentRole;
+}
+
+// ============================================================
+// DESHACER (Ctrl+Z)
+// ============================================================
+document.addEventListener('keydown', function (e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+    if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'SELECT' || document.activeElement.tagName === 'TEXTAREA') return;
+    e.preventDefault();
+    if (historyStack.length === 0) { toast('No hay cambios'); return; }
+    let last = historyStack.pop();
+
+    if (last.type === 'delete') {
+      data.splice(last.index, 0, last.row);
+      let dIdx = deltas.deletes.indexOf(last.row.ID);
+      if (dIdx !== -1) deltas.deletes.splice(dIdx, 1);
+      else deltas.adds.push(last.row);
+      saveLocalDeltas();
+      render();
+      triggerAutoSave();
+      toast('✅ Fila restaurada');
+    } else {
+      let r = data.find(x => x.ID === last.id);
+      if (r) {
+        r[last.col] = last.oldVal;
+        let addObj = deltas.adds.find(a => a.ID === last.id);
+        if (addObj) {
+          addObj[last.col] = last.oldVal;
+        } else {
+          let u = deltas.updates.find(x => x.id === last.id && x.field === last.col);
+          if (u) u.value = last.oldVal;
+          else deltas.updates.push({ id: last.id, field: last.col, value: last.oldVal });
+        }
+        saveLocalDeltas();
+        render();
+        triggerAutoSave();
+        toast('✅ Deshecho');
+      }
+    }
+  }
+});
+
+// ============================================================
+// FILTRO POR COLUMNA (POPUP)
+// ============================================================
+function openColFilter(e, key, label) {
+  cfContext = { col: key, label: label };
+  let saved = colFilters[key];
+  delete colFilters[key];
+  let filtered = getFiltered();
+  if (saved) colFilters[key] = saved;
+
+  let vals = new Set();
+  filtered.forEach(r => vals.add(String(r[key] || '').trim()));
+  let sorted = Array.from(vals).sort();
+  let selected = colFilters[key] || sorted;
+
+  document.getElementById('popupColName').textContent = label;
+  let listHTML = '';
+  sorted.forEach(v => {
+    let checked = selected.includes(v) ? 'checked' : '';
+    let display = v === '' ? '(Vacío)' : v.length > 50 ? v.substring(0, 50) + '…' : v;
+    listHTML += `<label><input type="checkbox" class="cf-cb" value="${escapeAttr(v)}" ${checked}><span>${escapeHtml(display)}</span></label>`;
+  });
+  document.getElementById('colFilterList').innerHTML = listHTML;
+  document.getElementById('colFilterSearch').value = '';
+
+  let popup = document.getElementById('colFilterPopup');
+  popup.style.display = 'block';
+  let rect = e.target.getBoundingClientRect();
+  let topPos = rect.bottom + 5;
+  let leftPos = rect.left - 100;
+  if (leftPos + 280 > window.innerWidth) leftPos = window.innerWidth - 290;
+  if (leftPos < 0) leftPos = 10;
+  popup.style.top = topPos + 'px';
+  popup.style.left = leftPos + 'px';
+}
+
+function closeColFilter() { document.getElementById('colFilterPopup').style.display = 'none'; }
+
+function searchColFilter() {
+  let q = document.getElementById('colFilterSearch').value.toLowerCase();
+  document.querySelectorAll('#colFilterList label').forEach(l => {
+    let cb = l.querySelector('input.cf-cb');
+    let fullVal = cb ? cb.value.toLowerCase() : l.textContent.toLowerCase();
+    let matches = q === '' ? true : fullVal.includes(q);
+    l.style.display = matches ? 'flex' : 'none';
+    if (cb && q !== '') cb.checked = matches;
+  });
+}
+
+function toggleAllCF(check) {
+  let hasSearch = document.getElementById('colFilterSearch').value.trim() !== '';
+  document.querySelectorAll('.cf-cb').forEach(cb => {
+    let visible = cb.closest('label').style.display !== 'none';
+    if (hasSearch) { if (visible) cb.checked = check; }
+    else cb.checked = check;
+  });
+}
+
+function applyColFilter() {
+  let selected = [];
+  let hasSearch = document.getElementById('colFilterSearch').value.trim() !== '';
+  let all = document.querySelectorAll('.cf-cb');
+  all.forEach(cb => {
+    let visible = cb.closest('label').style.display !== 'none';
+    if (hasSearch) { if (cb.checked && visible) selected.push(cb.value); }
+    else if (cb.checked) selected.push(cb.value);
+  });
+  if (!hasSearch && (selected.length === all.length || selected.length === 0)) {
+    delete colFilters[cfContext.col];
+  } else {
+    colFilters[cfContext.col] = selected;
+  }
+  closeColFilter();
+  render();
+}
+
+function clearAllColFilters() {
+  colFilters = {};
+  document.querySelectorAll('.top-filter').forEach(f => f.value = '');
+  document.getElementById('searchBox').value = '';
+  render();
+}
+
+document.addEventListener('click', function (e) {
+  let popup = document.getElementById('colFilterPopup');
+  if (popup.style.display === 'block' && !popup.contains(e.target) && !e.target.classList.contains('filter-btn')) {
+    closeColFilter();
+  }
+});
+
+// Exponer funciones al scope global para los onclick inline
+window.render = render;
+window.startEdit = startEdit;
+window.eliminarFila = eliminarFila;
+window.addRow = addRow;
+window.exportXLSX = exportXLSX;
+window.verifyPass = verifyPass;
+window.cancelPass = cancelPass;
+window.openColFilter = openColFilter;
+window.closeColFilter = closeColFilter;
+window.searchColFilter = searchColFilter;
+window.toggleAllCF = toggleAllCF;
+window.applyColFilter = applyColFilter;
+window.clearAllColFilters = clearAllColFilters;
+window.debounceSearch = debounceSearch;
+</script>
+</body>
+</html>
