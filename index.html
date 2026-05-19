@@ -912,12 +912,15 @@ function eliminarFila(id) {
 // ============================================================
 // AUTO-GUARDADO EN FIREBASE
 // ============================================================
+let fatalErrorActive = false; // bloquea reintentos cuando hay error no recuperable
+
 function triggerAutoSave() {
   if (currentRole === 'Invitado') return;
   if (!window._fb || !window._fb.configurado) {
     toast('⚠️ Firebase no configurado — cambios solo locales');
     return;
   }
+  if (fatalErrorActive) return; // no reintentar mientras hay error fatal
   hasUnsavedChanges = true;
   toast('⏳ Guardando...');
   if (saveTimeoutId) clearTimeout(saveTimeoutId);
@@ -942,19 +945,23 @@ async function ejecutarGuardadoSilencioso(intentos = 3) {
   saveLocalDeltas();
 
   try {
-    const { db, collection, doc, setDoc, deleteDoc, updateDoc, serverTimestamp, COLECCION } = window._fb;
+    const { db, collection, doc, setDoc, deleteDoc, serverTimestamp, COLECCION } = window._fb;
 
-    // 1. Procesar ADDS
+    // 1. Procesar ADDS — setDoc completo
     for (const obj of snapshot.adds) {
       const id = obj.ID;
       const docData = { ...obj };
-      delete docData.ID; // No guardar el ID dentro del documento
+      delete docData.ID;
       docData._actualizado = serverTimestamp();
       docData._creado = serverTimestamp();
       await setDoc(doc(db, COLECCION, id), docData);
     }
 
-    // 2. Procesar UPDATES (agrupados por ID)
+    // 2. Procesar UPDATES (agrupados por ID) — setDoc con merge:true
+    // NOTA: usamos setDoc en lugar de updateDoc para evitar que Firestore
+    // interprete nombres de campo con '/' (como "Tipo de recurso (PP/ORD)")
+    // como rutas anidadas. Con merge:true se comporta como updateDoc pero
+    // tomando los keys del objeto literalmente.
     const updatesByDoc = {};
     snapshot.updates.forEach(u => {
       if (!updatesByDoc[u.id]) updatesByDoc[u.id] = {};
@@ -962,24 +969,10 @@ async function ejecutarGuardadoSilencioso(intentos = 3) {
     });
 
     for (const [id, fields] of Object.entries(updatesByDoc)) {
-      // Si la fila también está en adds, ya quedó guardada con setDoc completo. Saltar.
+      // Si la fila también está en adds, ya se guardó completa con setDoc. Saltar.
       if (snapshot.adds.find(a => a.ID === id)) continue;
       fields._actualizado = serverTimestamp();
-      try {
-        await updateDoc(doc(db, COLECCION, id), fields);
-      } catch (errUpd) {
-        // Si el documento no existe, crearlo
-        if (String(errUpd.message).includes('No document to update')) {
-          let r = data.find(x => x.ID === id);
-          if (r) {
-            const docData = { ...r };
-            delete docData.ID;
-            docData._actualizado = serverTimestamp();
-            docData._creado = serverTimestamp();
-            await setDoc(doc(db, COLECCION, id), docData);
-          }
-        } else { throw errUpd; }
-      }
+      await setDoc(doc(db, COLECCION, id), fields, { merge: true });
     }
 
     // 3. Procesar DELETES
@@ -998,27 +991,53 @@ async function ejecutarGuardadoSilencioso(intentos = 3) {
     }
   } catch (error) {
     console.error("Error al guardar en Firestore:", error);
-    // Revertir: volver a poner los deltas
-    deltas.updates.unshift(...snapshot.updates);
-    deltas.adds.unshift(...snapshot.adds);
-    deltas.deletes.unshift(...snapshot.deletes);
 
-    // Deduplicar updates (mantener el más reciente)
-    let seen = new Map();
-    for (let i = deltas.updates.length - 1; i >= 0; i--) {
-      let key = deltas.updates[i].id + '||' + deltas.updates[i].field;
-      if (seen.has(key)) deltas.updates.splice(i, 1);
-      else seen.set(key, true);
+    // Clasificar el error: si es no recuperable (datos inválidos, permisos),
+    // descartar el snapshot y mostrar error persistente para evitar loop infinito
+    const msg = String(error.message || '');
+    const isFatal =
+      msg.includes('invalid data') ||
+      msg.includes('Invalid field') ||
+      msg.includes('permission-denied') ||
+      msg.includes('PERMISSION_DENIED') ||
+      msg.includes('insufficient permissions');
+
+    if (isFatal) {
+      fatalErrorActive = true;
+      saveTimeoutId = null;
+      hasUnsavedChanges = false;
+      localStorage.removeItem('cronograma_log_deltas');
+      showAlert(
+        'No se pudo guardar en Firestore por un problema no recuperable:\n\n' +
+        error.message +
+        '\n\nLos cambios siguen en tu pantalla pero NO están en la base de datos. ' +
+        'Refresca la página para descartarlos.'
+      );
+    } else {
+      // Error recuperable (red, timeout): re-insertar deltas y reintentar
+      deltas.updates.unshift(...snapshot.updates);
+      deltas.adds.unshift(...snapshot.adds);
+      deltas.deletes.unshift(...snapshot.deletes);
+
+      // Deduplicar updates (mantener el más reciente)
+      let seen = new Map();
+      for (let i = deltas.updates.length - 1; i >= 0; i--) {
+        let key = deltas.updates[i].id + '||' + deltas.updates[i].field;
+        if (seen.has(key)) deltas.updates.splice(i, 1);
+        else seen.set(key, true);
+      }
+
+      saveLocalDeltas();
+      hasUnsavedChanges = true;
+      saveTimeoutId = null;
+      toast('❌ Error temporal, reintentando...');
     }
-
-    saveLocalDeltas();
-    hasUnsavedChanges = true;
-    saveTimeoutId = null;
-    toast('❌ Error al guardar: ' + error.message);
   } finally {
     isSaving = false;
-    if (deltas.updates.length > 0 || deltas.adds.length > 0 || deltas.deletes.length > 0) {
-      triggerAutoSave();
+    if (!fatalErrorActive &&
+        (deltas.updates.length > 0 || deltas.adds.length > 0 || deltas.deletes.length > 0)) {
+      // Esperar un poco antes de reintentar para no saturar
+      setTimeout(() => triggerAutoSave(), 3000);
     }
   }
 }
